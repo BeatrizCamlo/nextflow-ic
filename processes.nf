@@ -1,21 +1,37 @@
 process alignment {
-    publishDir "results/sam", mode: 'copy'
+
+    tag "Read Alignment"
+
+    publishDir "${params.outdir}/sam", mode: 'copy'
+
+    cpus 4
+    memory '8 GB'
 
     input:
     path reads
-    path ref
+    path reference
 
     output:
     path "alignment.sam"
 
     script:
     """
-    minimap2 -ax sr ${ref} ${reads} > alignment.sam
+    minimap2 \
+        -ax sr \
+        ${reference} \
+        ${reads} \
+        > alignment.sam
     """
 }
 
 process sort_and_index {
-    publishDir "results/bam", mode: 'copy'
+
+    tag "Sort and Index"
+
+    publishDir "${params.outdir}/bam", mode: 'copy'
+
+    cpus 2
+    memory '4 GB'
 
     input:
     path sam_file
@@ -26,7 +42,11 @@ process sort_and_index {
 
     script:
     """
-    samtools view -bS ${sam_file} | samtools sort -o aligned_sorted.bam
+    samtools view \
+        -bS ${sam_file} \
+    | samtools sort \
+        -o aligned_sorted.bam
+
     samtools index aligned_sorted.bam
     """
 }

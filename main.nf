@@ -1,10 +1,24 @@
-nextflow.enable.dsl=2
+nextflow.enable.dsl = 2
 
-include { alignment; sort_and_index } from './processes.nf'
+include { alignment; sort_and_index } from './processes'
+
+def validateParameters() {
+    if (!params.reads || !params.reference) {
+        error """
+        Parâmetros obrigatórios não informados.
+
+        Uso:
+        nextflow run main.nf --reads <arquivo.fastq> --reference <arquivo.fasta>
+        """
+    }
+}
 
 workflow {
-    zika_ch = Channel.fromPath('zika_reads.fastq', checkIfExists: true)
-    hum_ch = Channel.fromPath('human.1.rna.fna', checkIfExists: true)
 
-    alignment(zika_ch, hum_ch) | sort_and_index
+    validateParameters()
+
+    reads_ch = Channel.fromPath(params.reads, checkIfExists: true)
+    reference_ch = Channel.fromPath(params.reference, checkIfExists: true)
+
+    alignment(reads_ch, reference_ch) | sort_and_index
 }

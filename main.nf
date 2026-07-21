@@ -1,15 +1,22 @@
 nextflow.enable.dsl = 2
 
-include { alignment; sort_and_index } from './processes'
+include {
+    combine_references
+    alignment
+    sort_and_index
+} from './processes'
 
 def validateParameters() {
     if (!params.reads || !params.reference) {
         error """
-        Parâmetros obrigatórios não informados.
+Parâmetros obrigatórios não informados.
 
-        Uso:
-        nextflow run main.nf --reads <arquivo.fastq> --reference <arquivo.fasta>
-        """
+Uso:
+
+nextflow run main.nf \
+    --reads reads.fastq \
+    --reference referencias/
+"""
     }
 }
 
@@ -17,8 +24,19 @@ workflow {
 
     validateParameters()
 
-    reads_ch = Channel.fromPath(params.reads, checkIfExists: true)
-    reference_ch = Channel.fromPath(params.reference, checkIfExists: true)
+    reads_ch = Channel.fromPath(
+        params.reads,
+        checkIfExists: true
+    )
 
-    alignment(reads_ch, reference_ch) | sort_and_index
+    references_ch = Channel.fromPath(
+        "${params.reference}/*.{fa,fastaq,fna}",
+        checkIfExists: true
+    ).collect()
+
+    combined_reference = combine_references(references_ch)
+
+    sam = alignment(reads_ch, combined_reference)
+
+    sort_and_index(sam)
 }

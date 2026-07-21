@@ -2,7 +2,7 @@
 
 Este projeto foi desenvolvido para o **Centro Multiusuário de Bioinformática (BioME/IMD/UFRN)** e automatiza o processo de alinhamento de sequências de RNA utilizando **Nextflow**.
 
-O pipeline recebe um arquivo de leituras (FASTQ) e um genoma de referência (FASTA), realiza o alinhamento das sequências com o **Minimap2** e, em seguida, utiliza o **Samtools** para converter, ordenar e indexar os arquivos gerados.
+O pipeline recebe um arquivo de leituras (FASTQ) e um diretório contendo arquivos de referência (FASTA), combina todas as referências em um único arquivo FASTA preservando identificadores únicos, realiza o alinhamento das sequências com o **Minimap2** e, em seguida, utiliza o **Samtools** para converter, ordenar e indexar os arquivos gerados.
 
 ## Ferramentas utilizadas
 
@@ -20,9 +20,13 @@ O pipeline recebe um arquivo de leituras (FASTQ) e um genoma de referência (FAS
 ├── nextflow.config
 ├── Dockerfile
 ├── docker-compose.yml
-├── human.1.rna.fna
+├── references/
+│   ├── chr1.fna
+│   ├── chr2.fna
+│   └── ...
 ├── zika_reads.fastq
 ├── results/
+│   ├── reference/
 │   ├── sam/
 │   └── bam/
 └── README.md
@@ -52,6 +56,37 @@ curl -s https://get.nextflow.io | bash
 chmod +x nextflow
 ```
 
+## Preparação das referências
+
+Devido ao grande tamanho dos genomas de referência, recomenda-se disponibilizá-los em formato compactado (`.zip`, `.tar.gz` ou `.gz`).
+
+Após realizar o download, extraia o conteúdo para um diretório contendo apenas os arquivos FASTA.
+
+Exemplo utilizando um arquivo `.tar.gz`:
+
+```bash
+tar -xzf referencias.tar.gz
+```
+
+Ou, para arquivos `.zip`:
+
+```bash
+unzip referencias.zip
+```
+
+Após a extração, a estrutura do diretório deve ser semelhante a:
+
+```text
+references/
+├── chr1.fna
+├── chr2.fna
+├── chr3.fna
+├── chr4.fna
+└── ...
+```
+
+A pipeline localizará automaticamente todos os arquivos com extensão `.fa`, `.fasta` e `.fna` presentes nesse diretório.
+
 ## Como executar
 
 ### Utilizando Docker
@@ -64,24 +99,26 @@ docker compose up --build
 
 ```bash
 ./nextflow run main.nf \
-    --reference human.1.rna.fna \
-    --reads zika_reads.fastq
+    --reads zika_reads.fastq \
+    --reference references/
 ```
 
 Para utilizar outros arquivos de entrada, basta informar seus caminhos:
 
 ```bash
 ./nextflow run main.nf \
-    --reference referencia.fasta \
-    --reads amostra.fastq
+    --reads amostra.fastq \
+    --reference minhas_referencias/
 ```
 
 ## Resultados
 
-Ao final da execução, os arquivos serão salvos na pasta `results`.
+Ao final da execução, os arquivos serão armazenados na pasta `results`.
 
-```
+```text
 results/
+├── reference/
+│   └── combined_reference.fasta
 ├── sam/
 │   └── alignment.sam
 └── bam/
@@ -93,6 +130,7 @@ results/
 
 | Arquivo | Descrição |
 |----------|-----------|
+| `combined_reference.fasta` | Arquivo FASTA gerado pela combinação de todas as referências, com identificadores únicos para cada sequência. |
 | `alignment.sam` | Resultado do alinhamento das sequências. |
 | `aligned_sorted.bam` | Arquivo BAM ordenado. |
 | `aligned_sorted.bam.bai` | Índice do arquivo BAM. |
@@ -101,11 +139,13 @@ results/
 
 O pipeline executa as seguintes etapas:
 
-1. Lê o arquivo de sequências (FASTQ) e o genoma de referência (FASTA);
-2. Alinha as sequências utilizando o **Minimap2**;
-3. Converte o arquivo SAM para BAM com o **Samtools**;
-4. Ordena o arquivo BAM;
-5. Gera o índice do arquivo BAM.
+1. Recebe um arquivo de leituras (FASTQ) e um diretório contendo arquivos de referência (FASTA);
+2. Localiza automaticamente todos os arquivos `.fa`, `.fasta` e `.fna` presentes no diretório informado;
+3. Combina todas as referências em um único arquivo FASTA, adicionando um prefixo baseado no nome de cada arquivo aos identificadores das sequências para evitar colisões entre cabeçalhos;
+4. Executa o alinhamento das reads utilizando o **Minimap2**;
+5. Converte o arquivo SAM para BAM utilizando o **Samtools**;
+6. Ordena o arquivo BAM;
+7. Gera o índice do arquivo BAM.
 
 ## Autores
 

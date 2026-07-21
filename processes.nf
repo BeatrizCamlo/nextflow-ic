@@ -1,11 +1,44 @@
+process combine_references {
+
+    tag "Combine References"
+
+    publishDir "${params.outdir}/reference", mode: 'copy'
+
+    input:
+    path references
+
+    output:
+    path "combined_reference.fasta"
+
+    script:
+    """
+    touch combined_reference.fasta
+
+    for fasta in ${references}; do
+
+        prefix=\$(basename "\$fasta")
+        prefix=\${prefix%%.*}
+
+        awk -v p="\$prefix" '
+            /^>/ {
+                sub(/^>/,"")
+                print ">" p "|" \$0
+                next
+            }
+            {
+                print
+            }
+        ' "\$fasta" >> combined_reference.fasta
+
+    done
+    """
+}
+
 process alignment {
 
     tag "Read Alignment"
 
     publishDir "${params.outdir}/sam", mode: 'copy'
-
-    cpus 4
-    memory '8 GB'
 
     input:
     path reads
@@ -30,9 +63,6 @@ process sort_and_index {
 
     publishDir "${params.outdir}/bam", mode: 'copy'
 
-    cpus 2
-    memory '4 GB'
-
     input:
     path sam_file
 
@@ -42,10 +72,8 @@ process sort_and_index {
 
     script:
     """
-    samtools view \
-        -bS ${sam_file} \
-    | samtools sort \
-        -o aligned_sorted.bam
+    samtools view -bS ${sam_file} \
+        | samtools sort -o aligned_sorted.bam
 
     samtools index aligned_sorted.bam
     """

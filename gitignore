@@ -11,3 +11,11 @@ report.html
 .vscode/
 .idea/
 
+# Referências biológicas
+references/
+referencias.zip
+*.fna
+*.fa
+*.fasta
+*.gz
+*.zip

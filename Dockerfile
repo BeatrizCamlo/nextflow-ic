@@ -1,21 +1,23 @@
 FROM debian:bullseye-slim
 
-LABEL description="Imagem para workflow Nextflow com minimap2 e samtools"
+LABEL description="imagem do workflow alignment"
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     openjdk-17-jre-headless \
-    wget \
     curl \
+    wget \
     bzip2 \
     minimap2 \
     samtools \
     && rm -rf /var/lib/apt/lists/*
 
-
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
-RUN curl -s https://get.nextflow.io | bash && \
-    mv nextflow /usr/local/bin/
+RUN curl -fsSL https://get.nextflow.io | bash && \
+    mv nextflow /usr/local/bin/nextflow && \
+    chmod +x /usr/local/bin/nextflow
 
 WORKDIR /project
+
+CMD ["nextflow"]

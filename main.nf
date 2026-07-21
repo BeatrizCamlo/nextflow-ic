@@ -30,7 +30,7 @@ workflow {
     )
 
     references_ch = Channel.fromPath(
-        "${params.reference}/*.{fa,fastaq,fna}",
+        "${params.reference}/*.{fa,fasta,fna}",
         checkIfExists: true
     ).collect()
 

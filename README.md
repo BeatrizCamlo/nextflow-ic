@@ -1,42 +1,41 @@
-# Pipeline de Alinhamento de Sequências de RNA
+# Pipeline de Alinhamento de Sequências
 
-Este projeto foi desenvolvido para o **Centro Multiusuário de Bioinformática (BioME/IMD/UFRN)** e automatiza o processo de alinhamento de sequências de RNA utilizando **Nextflow**.
+Este projeto foi desenvolvido para o **Centro Multiusuário de Bioinformática (BioME/IMD/UFRN)** e automatiza o processo de alinhamento de sequências utilizando **Nextflow**.
 
-O pipeline recebe um arquivo de leituras (FASTQ) e um diretório contendo arquivos de referência (FASTA), combina todas as referências em um único arquivo FASTA preservando identificadores únicos, realiza o alinhamento das sequências com o **Minimap2** e, em seguida, utiliza o **Samtools** para converter, ordenar e indexar os arquivos gerados.
+A pipeline recebe um arquivo de leituras (FASTQ/FASTQ.GZ) e um diretório contendo arquivos de referência (FASTA/FNA), combina automaticamente todas as referências em um único arquivo FASTA preservando identificadores únicos, realiza o alinhamento das sequências utilizando **Minimap2** e, em seguida, utiliza o **Samtools** para converter, ordenar e indexar os arquivos gerados.
 
 ## Ferramentas utilizadas
 
-- **Nextflow** – Gerenciamento do fluxo de trabalho.
+- **Nextflow** – Gerenciamento do workflow.
 - **Minimap2** – Alinhamento das sequências.
 - **Samtools** – Conversão, ordenação e indexação dos arquivos de alinhamento.
-- **Docker** *(opcional)* – Execução do pipeline em ambiente isolado.
+- **Docker** *(opcional)* – Execução da pipeline em ambiente isolado.
+
+---
 
 ## Estrutura do projeto
 
 ```text
 .
+├── Dockerfile
 ├── main.nf
 ├── processes.nf
 ├── nextflow.config
-├── Dockerfile
-├── docker-compose.yml
-├── references/
-│   ├── chr1.fna
-│   ├── chr2.fna
-│   └── ...
-├── zika_reads.fastq
+├── README.md
 ├── results/
+│   ├── bam/
 │   ├── reference/
-│   ├── sam/
-│   └── bam/
-└── README.md
+│   └── sam/
+└── work/
 ```
+
+---
 
 ## Pré-requisitos
 
-Antes de executar o pipeline, é necessário ter instalado:
+Para executar a pipeline localmente é necessário possuir:
 
-- Java 11 ou superior;
+- Java 17 ou superior;
 - Nextflow;
 - Minimap2;
 - Samtools.
@@ -53,63 +52,93 @@ sudo apt install -y \
     curl
 
 curl -s https://get.nextflow.io | bash
-chmod +x nextflow
+sudo mv nextflow /usr/local/bin/
 ```
 
-## Preparação das referências
-
-Devido ao grande tamanho dos genomas de referência, recomenda-se disponibilizá-los em formato compactado (`.zip`, `.tar.gz` ou `.gz`).
-
-Após realizar o download, extraia o conteúdo para um diretório contendo apenas os arquivos FASTA.
-
-Exemplo utilizando um arquivo `.tar.gz`:
+Verifique a instalação:
 
 ```bash
-tar -xzf referencias.tar.gz
+nextflow -version
 ```
 
-Ou, para arquivos `.zip`:
+---
+
+## Preparação dos dados
+
+O repositório **não inclui os arquivos de referência nem os arquivos de teste**, pois eles possuem tamanho elevado.
+
+Para executar a pipeline utilizando o conjunto de dados de demonstração, faça o download do pacote disponibilizado pela Oxford Nanopore:
 
 ```bash
-unzip referencias.zip
+wget https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-alignment/wf-alignment-demo.tar.gz
+
+tar -xzvf wf-alignment-demo.tar.gz
 ```
 
-Após a extração, a estrutura do diretório deve ser semelhante a:
+Após a extração, será criada a seguinte estrutura:
 
 ```text
-references/
-├── chr1.fna
-├── chr2.fna
-├── chr3.fna
-├── chr4.fna
-└── ...
+wf-alignment-demo/
+├── fastq/
+│   ├── sample_A/
+│   │   └── reads.fastq.gz
+│   ├── sample_B/
+│   │   └── reads.fastq.gz
+│   └── sample_C/
+│       └── reads.fastq.gz
+└── references/
+    ├── Escherichia_coli.fasta
+    ├── Salmonella_enterica.fasta
+    └── Staphylococcus_aureus.fasta
 ```
 
-A pipeline localizará automaticamente todos os arquivos com extensão `.fa`, `.fasta` e `.fna` presentes nesse diretório.
+O diretório `references/` contém os genomas de referência utilizados pela pipeline e deve ser informado no parâmetro `--reference`.
 
-## Como executar
+O parâmetro `--reads` deve receber um dos arquivos `reads.fastq.gz` presentes no diretório `fastq/`.
 
-### Utilizando Docker
+---
 
-```bash
-docker compose up --build
-```
+## Execução
 
 ### Execução local
 
 ```bash
-./nextflow run main.nf \
-    --reads zika_reads.fastq \
-    --reference references/
+nextflow run main.nf \
+    --reads wf-alignment-demo/fastq/sample_A/reads.fastq.gz \
+    --reference wf-alignment-demo/references
 ```
 
-Para utilizar outros arquivos de entrada, basta informar seus caminhos:
+Também é possível utilizar outros arquivos de entrada:
 
 ```bash
-./nextflow run main.nf \
-    --reads amostra.fastq \
-    --reference minhas_referencias/
+nextflow run main.nf \
+    --reads caminho/para/arquivo.fastq.gz \
+    --reference caminho/para/references
 ```
+
+---
+
+## Execução com Docker
+
+### Construir a imagem
+
+```bash
+docker build -t ic-alignment .
+```
+
+### Executar a pipeline
+
+```bash
+docker run --rm \
+    -v $(pwd):/project \
+    -w /project \
+    ic-alignment \
+    nextflow run main.nf \
+    --reads wf-alignment-demo/fastq/sample_A/reads.fastq.gz \
+    --reference wf-alignment-demo/references
+```
+
+---
 
 ## Resultados
 
@@ -117,35 +146,65 @@ Ao final da execução, os arquivos serão armazenados na pasta `results`.
 
 ```text
 results/
+├── bam/
+│   ├── aligned_sorted.bam
+│   └── aligned_sorted.bam.bai
 ├── reference/
 │   └── combined_reference.fasta
-├── sam/
-│   └── alignment.sam
-└── bam/
-    ├── aligned_sorted.bam
-    └── aligned_sorted.bam.bai
+└── sam/
+    └── alignment.sam
 ```
 
 ### Arquivos gerados
 
 | Arquivo | Descrição |
 |----------|-----------|
-| `combined_reference.fasta` | Arquivo FASTA gerado pela combinação de todas as referências, com identificadores únicos para cada sequência. |
-| `alignment.sam` | Resultado do alinhamento das sequências. |
+| `combined_reference.fasta` | Arquivo FASTA contendo todas as referências combinadas, preservando identificadores únicos para cada sequência. |
+| `alignment.sam` | Resultado do alinhamento gerado pelo Minimap2. |
 | `aligned_sorted.bam` | Arquivo BAM ordenado. |
 | `aligned_sorted.bam.bai` | Índice do arquivo BAM. |
 
+---
+
 ## Fluxo da pipeline
 
-O pipeline executa as seguintes etapas:
+A pipeline executa as seguintes etapas:
 
-1. Recebe um arquivo de leituras (FASTQ) e um diretório contendo arquivos de referência (FASTA);
-2. Localiza automaticamente todos os arquivos `.fa`, `.fasta` e `.fna` presentes no diretório informado;
-3. Combina todas as referências em um único arquivo FASTA, adicionando um prefixo baseado no nome de cada arquivo aos identificadores das sequências para evitar colisões entre cabeçalhos;
-4. Executa o alinhamento das reads utilizando o **Minimap2**;
-5. Converte o arquivo SAM para BAM utilizando o **Samtools**;
-6. Ordena o arquivo BAM;
-7. Gera o índice do arquivo BAM.
+1. Recebe um arquivo de leituras (`FASTQ` ou `FASTQ.GZ`);
+2. Recebe um diretório contendo arquivos de referência (`.fa`, `.fasta` ou `.fna`);
+3. Localiza automaticamente todos os arquivos de referência presentes no diretório informado;
+4. Combina todas as referências em um único arquivo FASTA, adicionando um prefixo baseado no nome de cada arquivo aos identificadores das sequências para evitar colisões entre cabeçalhos;
+5. Executa o alinhamento das leituras utilizando o **Minimap2**;
+6. Converte o arquivo SAM para BAM utilizando o **Samtools**;
+7. Ordena o arquivo BAM;
+8. Gera o índice (`.bai`) do arquivo BAM.
+
+---
+
+## Exemplo de execução
+
+Após baixar o conjunto de dados de demonstração, execute:
+
+```bash
+nextflow run main.nf \
+    --reads wf-alignment-demo/fastq/sample_A/reads.fastq.gz \
+    --reference wf-alignment-demo/references
+```
+
+Ao término da execução, a estrutura de saída será semelhante a:
+
+```text
+results/
+├── bam/
+│   ├── aligned_sorted.bam
+│   └── aligned_sorted.bam.bai
+├── reference/
+│   └── combined_reference.fasta
+└── sam/
+    └── alignment.sam
+```
+
+---
 
 ## Autores
 
